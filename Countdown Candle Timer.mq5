@@ -21,6 +21,7 @@ input int              InpYOffset   = 1;                  // Смещение п
 
 //--- Глобальные переменные
 string label_name = "Countdown_Candle_Timer_Label";
+int seconds_in_period = 0;
 
 
 int OnInit() {
@@ -29,6 +30,8 @@ int OnInit() {
       Print("Не удалось создать текстовую метку. Ошибка: ", GetLastError());
       return INIT_FAILED;
    }
+   
+   seconds_in_period = PeriodSeconds();
    
    // Настраиваем свойства метки
    SetLabelAnchor();
@@ -93,13 +96,10 @@ void UpdateTimerText() {
    last_current_time = current_time;
 
    // 2. Получаем время открытия текущего бара
-   datetime bar_time[];
-   if (CopyTime(_Symbol, _Period, 0, 1, bar_time) < 1) {
-      return;
-   }
+   datetime currentBarTime = iTime(NULL, 0, 0);
    
    // 3. Рассчитываем оставшиеся секунды
-   long seconds_left = (long)(bar_time[0] + PeriodSeconds()) - (long)current_time;
+   long seconds_left = (long)(currentBarTime + seconds_in_period) - (long)current_time;
    if (seconds_left < 0) {
       seconds_left = 0;
    }
