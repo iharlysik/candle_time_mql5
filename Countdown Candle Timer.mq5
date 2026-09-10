@@ -5,9 +5,8 @@
 #property link      "https://mql5.com"
 #property version   "1.00"
 
-// Индикатор будет отображаться прямо на графике цены
 #property indicator_chart_window
-// Нам не нужны графические буферы, так как вывод идет через текстовую метку
+
 #property indicator_buffers 0
 #property indicator_plots   0
 
@@ -25,7 +24,6 @@ int seconds_in_period = 0;
 
 
 int OnInit() {
-   // Создаем текстовую метку на графике
    if (!ObjectCreate(0, label_name, OBJ_LABEL, 0, 0, 0)) {
       Print("Не удалось создать текстовую метку. Ошибка: ", GetLastError());
       return INIT_FAILED;
@@ -33,7 +31,6 @@ int OnInit() {
    
    seconds_in_period = PeriodSeconds();
    
-   // Настраиваем свойства метки
    SetLabelAnchor();
    ObjectSetInteger(0, label_name, OBJPROP_CORNER, InpCorner);
    ObjectSetInteger(0, label_name, OBJPROP_XDISTANCE, InpXOffset);
@@ -45,17 +42,14 @@ int OnInit() {
    ObjectSetInteger(0, label_name, OBJPROP_HIDDEN, true);
    ObjectSetString(0, label_name, OBJPROP_TEXT, "00:00:00");
 
-   // Инициализируем таймер с шагом в 1 секунду
    EventSetTimer(1);
    
-   // Сразу обновляем текст при запуске
    UpdateTimerText();
 
    return INIT_SUCCEEDED;
 }
 
 void OnDeinit(const int reason) {
-   // Обязательно уничтожаем таймер и удаляем объект с графика
    EventKillTimer();
    ObjectDelete(0, label_name);
 }
@@ -71,40 +65,31 @@ int OnCalculate(const int rates_total,
                 const long &volume[],
                 const int &spread[])
 {
-   // При каждом новом тике также обновляем текст
    UpdateTimerText();
    return rates_total;
 }
 
 void OnTimer() {
-   // Каждую секунду вызываем обновление текста
    UpdateTimerText();
 }
 
 void UpdateTimerText() {
-   // Статические переменные сохраняют значения между вызовами функции
    static datetime last_current_time = 0;
-
-   // 1. Получаем текущее время сервера
-   datetime current_time = TimeCurrent();
    
-   // ОПТИМИЗАЦИЯ: Если секунда не изменилась с прошлого вызова, сразу выходим
+   datetime current_time = TimeCurrent();
    if (current_time == last_current_time) {
       return;
    }
    
    last_current_time = current_time;
 
-   // 2. Получаем время открытия текущего бара
    datetime currentBarTime = iTime(NULL, 0, 0);
    
-   // 3. Рассчитываем оставшиеся секунды
    long seconds_left = (long)(currentBarTime + seconds_in_period) - (long)current_time;
    if (seconds_left < 0) {
       seconds_left = 0;
    }
    
-   // 4. Форматируем секунды в строку
    long hours = seconds_left / 3600;
    long minutes = (seconds_left % 3600) / 60;
    long seconds = seconds_left % 60;
