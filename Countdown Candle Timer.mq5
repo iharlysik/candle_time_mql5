@@ -10,17 +10,28 @@
 #property indicator_buffers 0
 #property indicator_plots   0
 
+
 //--- Входные параметры
 input color            InpTextColor = clrDarkViolet;      // Цвет текста
 input int              InpFontSize  = 20;                 // Размер шрифта
 input string           InpFontName  = "Verdana";          // Шрифт
-input ENUM_BASE_CORNER InpCorner    = CORNER_LEFT_LOWER;  // Позиция таймера
+input ENUM_BASE_CORNER InpCorner    = CORNER_RIGHT_LOWER;  // Позиция таймера
 input int              InpXOffset   = 1;                  // Смещение по оси X
 input int              InpYOffset   = 1;                  // Смещение по оси Y
+
 
 //--- Глобальные переменные
 string label_name = "Countdown_Candle_Timer_Label";
 int seconds_in_period = 0;
+
+struct ChartColors {
+   color default_bid;
+   color bull;
+   color bear;
+   color line;
+};
+
+ChartColors chart_colors;
 
 
 int OnInit() {
@@ -29,7 +40,10 @@ int OnInit() {
       return INIT_FAILED;
    }
    
+   chart_colors.default_bid = (color)ChartGetInteger(0, CHART_COLOR_BID);
    seconds_in_period = PeriodSeconds();
+   
+   UpdateChartColors();
    
    SetLabelAnchor();
    ObjectSetInteger(0, label_name, OBJPROP_CORNER, InpCorner);
@@ -41,16 +55,15 @@ int OnInit() {
    ObjectSetInteger(0, label_name, OBJPROP_SELECTABLE, false);
    ObjectSetInteger(0, label_name, OBJPROP_HIDDEN, true);
    ObjectSetString(0, label_name, OBJPROP_TEXT, "00:00:00");
-
-   EventSetTimer(1);
    
-   UpdateTimerText();
+   datetime current_bar_time = iTime(NULL, 0, 0);
+   UpdateTimerText(current_bar_time);
 
    return INIT_SUCCEEDED;
 }
 
 void OnDeinit(const int reason) {
-   EventKillTimer();
+   ChartSetInteger(0, CHART_COLOR_BID, chart_colors.default_bid);
    ObjectDelete(0, label_name);
 }
 
@@ -65,15 +78,32 @@ int OnCalculate(const int rates_total,
                 const long &volume[],
                 const int &spread[])
 {
-   UpdateTimerText();
+   int first_bar_index = rates_total - 1;
+   
+   ChangeBidLineColor(open[first_bar_index], close[first_bar_index]);
+   UpdateTimerText(time[first_bar_index]);
+   
    return rates_total;
 }
 
-void OnTimer() {
-   UpdateTimerText();
+void OnChartEvent(const int id,
+                  const long &lparam,
+                  const double &dparam,
+                  const string &sparam)
+{
+   if (id == CHARTEVENT_CHART_CHANGE) {
+      UpdateChartColors();
+      
+      MqlRates rates[1];
+      CopyRates(NULL, 0, 0, 1, rates);
+   
+      MqlRates rate = rates[0];
+      ChangeBidLineColor(rate.open, rate.close);
+      UpdateTimerText(rate.time);
+   }
 }
 
-void UpdateTimerText() {
+void UpdateTimerText(datetime current_bar_time) {
    static datetime last_current_time = 0;
    
    datetime current_time = TimeCurrent();
@@ -82,10 +112,8 @@ void UpdateTimerText() {
    }
    
    last_current_time = current_time;
-
-   datetime currentBarTime = iTime(NULL, 0, 0);
    
-   long seconds_left = (long)(currentBarTime + seconds_in_period) - (long)current_time;
+   long seconds_left = (long)(current_bar_time + seconds_in_period) - (long)current_time;
    if (seconds_left < 0) {
       seconds_left = 0;
    }
@@ -117,4 +145,23 @@ void SetLabelAnchor() {
    }
    
    ObjectSetInteger(0, label_name, OBJPROP_ANCHOR, anchor);
+}
+
+void ChangeBidLineColor(double open, double close) {
+   static color last_color = clrNONE;
+   color current_color = chart_colors.line;
+
+   if (close > open)      current_color = chart_colors.bull;
+   else if (open > close) current_color = chart_colors.bear;
+   
+   if (last_color != current_color) {
+      last_color = current_color;
+      ChartSetInteger(0, CHART_COLOR_BID, current_color);
+   }
+}
+
+void UpdateChartColors() {
+   chart_colors.bull = (color)ChartGetInteger(0, CHART_COLOR_CANDLE_BULL);
+   chart_colors.bear = (color)ChartGetInteger(0, CHART_COLOR_CANDLE_BEAR);
+   chart_colors.line = (color)ChartGetInteger(0, CHART_COLOR_CHART_LINE);
 }
