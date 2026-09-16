@@ -36,7 +36,7 @@ ChartColors chart_colors;
 
 int OnInit() {
    if (!ObjectCreate(0, label_name, OBJ_LABEL, 0, 0, 0)) {
-      Print("Не удалось создать текстовую метку. Ошибка: ", GetLastError());
+      Print("Не удалось создать таймер. Ошибка: ", GetLastError());
       return INIT_FAILED;
    }
    
